@@ -22,9 +22,8 @@ func (r Role) Scopes() []Scope {
 			ScopeServerDelete,
 			ScopeServerImport,
 			ScopeServerExport,
-			ScopeServerReport,
-			ScopeReportDownload,
-			ScopeUserRead,
+			ScopeMonitorRead,
+			ScopeMonitorReport,
 		}
 
 	case RoleUser:
@@ -35,8 +34,6 @@ func (r Role) Scopes() []Scope {
 			ScopeServerDelete,
 			ScopeServerImport,
 			ScopeServerExport,
-			ScopeServerReport,
-			ScopeReportDownload,
 		}
 
 	case RoleGuest:
