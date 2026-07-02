@@ -64,7 +64,12 @@ func (s *BatchPGService) Run(ctx context.Context) {
 				flush()
 				return
 			}
-			buffer[item.ServerID] = item
+			if old, exist := buffer[item.ServerID]; !exist ||
+				(item.LastHeartbeatAt == nil && item.LastPingAt.After(old.LastPingAt)) ||
+				(item.LastHeartbeatAt != nil && old.LastHeartbeatAt != nil && item.LastHeartbeatAt.After(*old.LastHeartbeatAt)) ||
+				(item.LastHeartbeatAt != nil && old.LastHeartbeatAt == nil) {
+				buffer[item.ServerID] = item
+			}
 			if len(buffer) >= s.maxSize {
 				flush()
 			}
