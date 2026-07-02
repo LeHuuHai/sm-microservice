@@ -44,7 +44,7 @@ func (s *BatchESService) Run(ctx context.Context) {
 				slog.Error("Failed to bulk write logs to Elasticsearch", "err", err)
 			}
 		}(tmp)
-		slog.Info("Flushed logs batch to Elasticsearch", "batch_size", len(tmp))
+		// slog.Info("Flushed logs batch to Elasticsearch", "batch_size", len(tmp))
 	}
 
 	for {

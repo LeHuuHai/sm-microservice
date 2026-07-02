@@ -54,3 +54,53 @@ func (r *LiveStatusRepo) BulkUpdateLiveStatus(ctx context.Context, items []model
 
 	return nil
 }
+
+func (r *LiveStatusRepo) ListWithPagination(ctx context.Context, from int, to int) ([]model.LiveStatusWithServerInfo, int, error) {
+	var results []model.LiveStatusWithServerInfo
+	var total int64
+
+	query := r.db.WithContext(ctx).
+		Table("monitored_servers ms").
+		Select("ms.server_id, ms.server_name, ms.ipv4, ls.status").
+		Joins("LEFT JOIN live_statuses ls ON ms.server_id = ls.server_id")
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	err := query.Order("ms.server_name ASC").
+		Offset(from).
+		Limit(to - from).
+		Scan(&results).Error
+
+	return results, int(total), err
+}
+
+func (r *LiveStatusRepo) GetStatusSummary(ctx context.Context) (online int, offline int, unknown int, err error) {
+	type Result struct {
+		Status string
+		Count  int
+	}
+	var results []Result
+	err = r.db.WithContext(ctx).
+		Table("live_statuses").
+		Select("status, COUNT(*) as count").
+		Group("status").
+		Scan(&results).Error
+	
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	for _, res := range results {
+		switch res.Status {
+		case "ONLINE":
+			online = res.Count
+		case "OFFLINE":
+			offline = res.Count
+		default:
+			unknown += res.Count
+		}
+	}
+	return online, offline, unknown, nil
+}

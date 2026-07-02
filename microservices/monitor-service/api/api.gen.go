@@ -18,6 +18,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
+	"github.com/oapi-codegen/runtime"
 	strictgin "github.com/oapi-codegen/runtime/strictmiddleware/gin"
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
@@ -31,6 +32,23 @@ type ErrorResponse struct {
 	Code      *string `json:"code,omitempty"`
 	Message   *string `json:"message,omitempty"`
 	RequestId *string `json:"request_id,omitempty"`
+}
+
+// LiveStatusItem defines model for LiveStatusItem.
+type LiveStatusItem struct {
+	Ipv4       *string `json:"ipv4,omitempty"`
+	ServerId   *string `json:"server_id,omitempty"`
+	ServerName *string `json:"server_name,omitempty"`
+	Status     *string `json:"status,omitempty"`
+}
+
+// LiveStatusListResponse defines model for LiveStatusListResponse.
+type LiveStatusListResponse struct {
+	Items        *[]LiveStatusItem `json:"items,omitempty"`
+	Total        *int              `json:"total,omitempty"`
+	TotalOffline *int              `json:"total_offline,omitempty"`
+	TotalOnline  *int              `json:"total_online,omitempty"`
+	TotalUnknown *int              `json:"total_unknown,omitempty"`
 }
 
 // ReportServerRequest defines model for ReportServerRequest.
@@ -52,13 +70,22 @@ type InternalError = ErrorResponse
 // Unauthorized defines model for Unauthorized.
 type Unauthorized = ErrorResponse
 
+// GetMonitorLivestatusParams defines parameters for GetMonitorLivestatus.
+type GetMonitorLivestatusParams struct {
+	From int `form:"from" json:"from"`
+	To   int `form:"to" json:"to"`
+}
+
 // GenerateServerReportJSONRequestBody defines body for GenerateServerReport for application/json ContentType.
 type GenerateServerReportJSONRequestBody = ReportServerRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Get paginated live status of servers
+	// (GET /monitor/livestatus)
+	GetMonitorLivestatus(c *gin.Context, params GetMonitorLivestatusParams)
 	// Generate server report
-	// (POST /servers/report)
+	// (POST /monitor/report)
 	GenerateServerReport(c *gin.Context)
 }
 
@@ -71,10 +98,60 @@ type ServerInterfaceWrapper struct {
 
 type MiddlewareFunc func(c *gin.Context)
 
+// GetMonitorLivestatus operation middleware
+func (siw *ServerInterfaceWrapper) GetMonitorLivestatus(c *gin.Context) {
+
+	var err error
+
+	c.Set(BearerAuthScopes, []string{"monitor:read"})
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetMonitorLivestatusParams
+
+	// ------------- Required query parameter "from" -------------
+
+	if paramValue := c.Query("from"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument from is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "from", c.Request.URL.Query(), &params.From)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter from: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Required query parameter "to" -------------
+
+	if paramValue := c.Query("to"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandler(c, fmt.Errorf("Query argument to is required, but not found"), http.StatusBadRequest)
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "to", c.Request.URL.Query(), &params.To)
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter to: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetMonitorLivestatus(c, params)
+}
+
 // GenerateServerReport operation middleware
 func (siw *ServerInterfaceWrapper) GenerateServerReport(c *gin.Context) {
 
-	c.Set(BearerAuthScopes, []string{"server:report"})
+	c.Set(BearerAuthScopes, []string{"monitor:report"})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
@@ -113,7 +190,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
-	router.POST(options.BaseURL+"/servers/report", wrapper.GenerateServerReport)
+	router.GET(options.BaseURL+"/monitor/livestatus", wrapper.GetMonitorLivestatus)
+	router.POST(options.BaseURL+"/monitor/report", wrapper.GenerateServerReport)
 }
 
 type BadRequestJSONResponse ErrorResponse
@@ -123,6 +201,59 @@ type ForbiddenJSONResponse ErrorResponse
 type InternalErrorJSONResponse ErrorResponse
 
 type UnauthorizedJSONResponse ErrorResponse
+
+type GetMonitorLivestatusRequestObject struct {
+	Params GetMonitorLivestatusParams
+}
+
+type GetMonitorLivestatusResponseObject interface {
+	VisitGetMonitorLivestatusResponse(w http.ResponseWriter) error
+}
+
+type GetMonitorLivestatus200JSONResponse LiveStatusListResponse
+
+func (response GetMonitorLivestatus200JSONResponse) VisitGetMonitorLivestatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMonitorLivestatus400JSONResponse struct{ BadRequestJSONResponse }
+
+func (response GetMonitorLivestatus400JSONResponse) VisitGetMonitorLivestatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMonitorLivestatus401JSONResponse struct{ UnauthorizedJSONResponse }
+
+func (response GetMonitorLivestatus401JSONResponse) VisitGetMonitorLivestatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMonitorLivestatus403JSONResponse struct{ ForbiddenJSONResponse }
+
+func (response GetMonitorLivestatus403JSONResponse) VisitGetMonitorLivestatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetMonitorLivestatus500JSONResponse struct{ InternalErrorJSONResponse }
+
+func (response GetMonitorLivestatus500JSONResponse) VisitGetMonitorLivestatusResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
 
 type GenerateServerReportRequestObject struct {
 	Body *GenerateServerReportJSONRequestBody
@@ -178,8 +309,11 @@ func (response GenerateServerReport500JSONResponse) VisitGenerateServerReportRes
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Get paginated live status of servers
+	// (GET /monitor/livestatus)
+	GetMonitorLivestatus(ctx context.Context, request GetMonitorLivestatusRequestObject) (GetMonitorLivestatusResponseObject, error)
 	// Generate server report
-	// (POST /servers/report)
+	// (POST /monitor/report)
 	GenerateServerReport(ctx context.Context, request GenerateServerReportRequestObject) (GenerateServerReportResponseObject, error)
 }
 
@@ -193,6 +327,33 @@ func NewStrictHandler(ssi StrictServerInterface, middlewares []StrictMiddlewareF
 type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
+}
+
+// GetMonitorLivestatus operation middleware
+func (sh *strictHandler) GetMonitorLivestatus(ctx *gin.Context, params GetMonitorLivestatusParams) {
+	var request GetMonitorLivestatusRequestObject
+
+	request.Params = params
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.GetMonitorLivestatus(ctx, request.(GetMonitorLivestatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetMonitorLivestatus")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(GetMonitorLivestatusResponseObject); ok {
+		if err := validResponse.VisitGetMonitorLivestatusResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // GenerateServerReport operation middleware
@@ -231,18 +392,21 @@ func (sh *strictHandler) GenerateServerReport(ctx *gin.Context) {
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"H4sIAAAAAAAC/7xVXWvbMBT9K+Zuj27sthsUv6WwjqwMSruxQQlDtW8SFeujV3LBC/rv40p2E9Ns7cPo",
-	"U6yPc8+5OkfKFmqjrNGovYNqC4TOGu0wDs5Fc40PHTrPo9pojzp+CmtbWQsvjS7undE85+oNKsFf7wlX",
-	"UMG7Yle6SKuu+ERk6HoggRBCDg26mqTlYlAxZ0YDacjhwtCdbBrUb6dgRxlyWGiPpEUbUW+nYaTNHNIj",
-	"UoaRPuTwXYvObwzJ39i8nZwJKy8PSC48BVdbsGQskpcpQ7Vp4qzvLUIFzpPUa+5EoXNifXhtCMAv2RxY",
-	"Dvk4Y+7usY4xuUZryN/Ew9qL7FTKioyKv4aU8FBBIzweeakQ8kMaapSPSBEqPSo3waISsj2EGyYEkejj",
-	"2LyWc2hcElt7m+RG/L6Y5bPu2Q6sO5K+v2FbUrPCykvs553fRP3s4gZFgwQ5aKG4wM+j+dXi6BL7nZSE",
-	"Ytl3KAhpxKfRxdjElx/fYAgBo9LqrsrGe5tiJPUqtj+N0/xqka0MZUposZZ6PaZcGS294cPIhOZngE11",
-	"XFf6lgt/TRsyNlrWmM2vFpADn0sqfDwrZyWrNxa1sBIqOJ2Vs1PIwQq/iQdTJDJXpPIxJibFhcMS78+i",
-	"gQo+o+YhjqmKu5+yeW6a/r9dwEPxDdM8eOowTuy9zyflyfPDTbWydVIvjc4eOuywyVxX1+jcqmvb6PCH",
-	"svybrieWYu8vIEKOX4ZMHwsGnb4Mmjy6H1+jbPoy798CqG63k/zeQvK8GixfhmUOrlNKUL9n9BhDGq32",
-	"Yu0YnYyBZfg3Syqb0hVXO2qH21AVRWtq0W6M89VZeVYC7x3qb8cLOfCE/GnmQrYIYRn+BAAA//97Lhhu",
-	"pwcAAA==",
+	"H4sIAAAAAAAC/+RWUWvkNhD+K2baRyfeXK5w+C0HTdkmpSFpaSEsh2KPvbpakjOSt7jB/72MJK/XXV9y",
+	"hZCXe1tZmvk+zXzzaZ+gMKo1GrWzkD8BoW2NtugXH0V5i48dWserwmiH2v8UbdvIQjhpdPbZGs3fbLFF",
+	"JfjX94QV5PBdNqXOwq7NfiQydBtBYBiGFEq0BcmWk0HOmAlF0CGFS0MPsixRvx2DCXJIYa0dkhaNj3o7",
+	"DiNsYpF2SAl6+CGF37Xo3NaQ/AfLt6MzQ+XtGMmJ58H5E7RkWiQng4YKU/qvrm8RcrCOpK75JgqtFfXy",
+	"XhTAJ1kubA/p+MU8fMbCy+Ra7vDOCdfZtUN1zEK2u/eLSKG+y0D7XS3UMk/rIf83x2tp3ZcrJh2q+Y/n",
+	"evefm0/Agkj0fm2caA44Su2wRtpvfTJV1UiNzx7RL53o9F/a/K2XjiwV4xZbQ+7O1/fAY+aVqMj4XlaG",
+	"lHCQQykcnjipENIl0RQod0jz2u1jUQnZLMUd1+trMaNSJfEs3ge6Pv6QzObo9l5YRUfS9XfcxXBZ0cor",
+	"7C86t/X8eey2KEokSCEIEP48ubhZn1xhP1EJUUz7AQUhjfFhdTle4uc/foM4tRwVdqcsW+faMPdSV/76",
+	"8/m/uFknlaFECS1qqevRlpTR0hkuRiI0+zY31XJe6RpO/Es4kHCjZYHJxc0aUuC6hMRnp6vTFbM3LWrR",
+	"Ssjh/HR1eg4ptMJtfWGyiJI1cofTxNXoFcN68Z63LiGHn9BFyOvpMOciodB5bdzH4j52SP1U29i8qZ+O",
+	"OkwPDFRJLVWnIF+lCwpfThql8GLKs4WUm3T+GL9brV7N8L9gRQvO/+sVd+d9wF5KueeYHfxb8CFnL4fM",
+	"3xUOOn85aPY+//A1zOaP+OH8eTkcTs49RLXlhKKEDbfBdkoJ6oO8kpYnQDgsE9ZjEjSWmCrOhFe/qFlo",
+	"EOwNNoy4V3EYEm92xi5KWPMSR2/0p/dP4kdT9q8mgyUTHuauxpIdjpT47tgiQq6kDuyl0cljhx2Wie2K",
+	"Aq2tuqbpv10t+S4eqSl0enRTGnt9rJ9nYULaqD7e7aiJpp5nWWMK0WyNdfmH1YcV8NmY/2m0qYjDLha/",
+	"XMoGYdgM/wYAAP//ubpdyh8MAAA=",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

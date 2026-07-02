@@ -49,7 +49,7 @@ func (s *BatchPGService) Run(ctx context.Context) {
 				slog.Error("Failed to bulk update LiveStatus to Postgres", "err", err)
 			}
 		}(list)
-		slog.Info("Flushed status batch to Postgres", "batch_size", len(list))
+		// slog.Info("Flushed status batch to Postgres", "batch_size", len(list))
 	}
 
 	for {

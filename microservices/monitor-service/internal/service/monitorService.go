@@ -7,6 +7,7 @@ import (
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/domain/repo"
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/domain/service"
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/model"
+	"github.com/LeHuuHai/server-management/microservices/pkg/apperr"
 	pkgmodel "github.com/LeHuuHai/server-management/microservices/pkg/model"
 )
 
@@ -110,4 +111,26 @@ func (s *MonitorService) SyncServerLifecycle(ctx context.Context, event pkgmodel
 		return s.liveStatusRepo.Delete(ctx, event.ServerID)
 	}
 	return nil
+}
+
+func (s *MonitorService) GetLiveStatuses(ctx context.Context, from int, to int) ([]model.LiveStatusWithServerInfo, int, int, int, int, error) {
+	if to-from <= 0 || from < 0 || to <= 0 {
+		return nil, 0, 0, 0, 0, apperr.ErrInvalidPagination
+	}
+	if to-from > 100 {
+		to = from + 100
+	}
+
+	results, total, err := s.liveStatusRepo.ListWithPagination(ctx, from, to)
+	if err != nil {
+		return nil, 0, 0, 0, 0, err
+	}
+
+	online, offline, unknown, err := s.liveStatusRepo.GetStatusSummary(ctx)
+	if err != nil {
+		// Log error but don't fail the entire request just because summary failed
+		slog.Warn("Failed to get status summary", "err", err)
+	}
+
+	return results, total, online, offline, unknown, nil
 }

@@ -141,7 +141,7 @@ func main() {
 	}()
 
 	// Start REST Server
-	reportHandler := handler.NewReportRestHandler(reportSvc)
+	reportHandler := handler.NewMonitorRestHandler(reportSvc, monitorSvc)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 

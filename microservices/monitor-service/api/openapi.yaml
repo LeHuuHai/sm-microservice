@@ -16,7 +16,7 @@ security:
   - bearerAuth: []
 
 paths:
-  /servers/report:
+  /monitor/report:
     post:
       tags:
         - Server
@@ -25,7 +25,7 @@ paths:
 
       security:
         - bearerAuth:
-            - server:report
+            - monitor:report
 
       requestBody:
         required: true
@@ -47,6 +47,44 @@ paths:
         "403":
           $ref: "#/components/responses/Forbidden"
 
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /monitor/livestatus:
+    get:
+      tags:
+        - Server
+      summary: Get paginated live status of servers
+      operationId: GetMonitorLivestatus
+      security:
+        - bearerAuth:
+            - monitor:read
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveStatusListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -73,6 +111,34 @@ components:
           items:
             type: string
             format: email
+
+    LiveStatusItem:
+      type: object
+      properties:
+        server_id:
+          type: string
+        server_name:
+          type: string
+        ipv4:
+          type: string
+        status:
+          type: string
+
+    LiveStatusListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/LiveStatusItem"
+        total:
+          type: integer
+        total_online:
+          type: integer
+        total_offline:
+          type: integer
+        total_unknown:
+          type: integer
 
     ErrorResponse:
       type: object

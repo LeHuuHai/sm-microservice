@@ -12,3 +12,10 @@ type LiveStatus struct {
 	LastPingAt      time.Time
 	LastHeartbeatAt *time.Time // pointer to support nil if never received
 }
+
+type LiveStatusWithServerInfo struct {
+	ServerID   string
+	ServerName string
+	IPv4       string
+	Status     pkgmodel.ServerStatus
+}
