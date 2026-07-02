@@ -2,11 +2,11 @@ package postgres
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/domain/repo"
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/model"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type LiveStatusRepo struct {
@@ -39,9 +39,18 @@ func (r *LiveStatusRepo) BulkUpdateLiveStatus(ctx context.Context, items []model
 		return nil
 	}
 
-	// Single batch GORM bulk upsert (insert or update status, last_ping_at, last_heartbeat_at on conflict)
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "server_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"status", "last_ping_at", "last_heartbeat_at"}),
-	}).Create(&items).Error
+	tx := r.db.WithContext(ctx)
+	for _, item := range items {
+		if err := tx.Model(&model.LiveStatus{}).
+			Where("server_id = ?", item.ServerID).
+			Updates(map[string]any{
+				"status":            item.Status,
+				"last_ping_at":      item.LastPingAt,
+				"last_heartbeat_at": item.LastHeartbeatAt,
+			}).Error; err != nil {
+			slog.Warn("Update live status failed", "err", err)
+		}
+	}
+
+	return nil
 }
