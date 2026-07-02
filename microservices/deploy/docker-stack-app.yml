@@ -12,7 +12,7 @@ services:
 
 #----------------------------------------- Auth service ----------------------------------------- 
   auth-service:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-auth-service:v1.0.1
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-auth-service:v1.0.0
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8080
@@ -35,6 +35,13 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
         - "traefik.http.services.auth.loadbalancer.server.port=8080"
+        - "traefik.http.middlewares.cors-mw.headers.accesscontrolallowmethods=GET,OPTIONS,PUT,POST,DELETE,PATCH"
+        - "traefik.http.middlewares.cors-mw.headers.accesscontrolallowheaders=Origin,Content-Type,Accept,Authorization,X-API-Key"
+        - "traefik.http.middlewares.cors-mw.headers.accesscontrolalloworiginlist=http://localhost:3000,http://localhost,http://192.168.9.250"
+        - "traefik.http.middlewares.cors-mw.headers.accesscontrolmaxage=100"
+        - "traefik.http.middlewares.cors-mw.headers.addvaryheader=true"
+        - "traefik.http.routers.auth.middlewares=cors-mw"
+        - "traefik.http.middlewares.auth-and-cors.chain.middlewares=cors-mw,auth-mw"
         # ForwardAuth middleware for Traefik to parse JWT and inject headers
         # NOTE: auth-service needs an endpoint at /auth/verify that validates JWT and returns X-User-Role
         - "traefik.http.middlewares.auth-mw.forwardauth.address=http://auth-service:8080/auth/verify"
@@ -43,7 +50,7 @@ services:
 
 #----------------------------------------- Server service ----------------------------------------- 
   server-service:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-server-service:v1.0.11
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-server-service:v1.0.0
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8080
@@ -60,12 +67,12 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.server.rule=PathPrefix(`/servers`)"
-        - "traefik.http.routers.server.middlewares=auth-mw"
+        - "traefik.http.routers.server.middlewares=auth-and-cors"
         - "traefik.http.services.server.loadbalancer.server.port=8080"
 
 #----------------------------------------- Monitor service ----------------------------------------- 
   monitor-service:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-monitor-service:v1.0.12
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-monitor-service:v1.0.0
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8080
@@ -93,13 +100,13 @@ services:
     deploy:
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.monitor.rule=PathPrefix(`/servers/report`)"
-        - "traefik.http.routers.monitor.middlewares=auth-mw"
+        - "traefik.http.routers.monitor.rule=PathPrefix(`/monitor`)"
+        - "traefik.http.routers.monitor.middlewares=auth-and-cors"
         - "traefik.http.services.monitor.loadbalancer.server.port=8080"
 
 #----------------------------------------- Heartbeat gateway ----------------------------------------- 
   heartbeat-gateway:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-heartbeat-gateway:v1.0.1
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-heartbeat-gateway:v1.0.0
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8080
@@ -112,11 +119,12 @@ services:
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.heartbeat.rule=PathPrefix(`/heartbeat`)"
+        - "traefik.http.routers.heartbeat.middlewares=cors-mw"
         - "traefik.http.services.heartbeat.loadbalancer.server.port=8080"
 
 #----------------------------------------- Ping worker ----------------------------------------- 
   ping-worker:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-ping-worker:v1.0.1
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-ping-worker:v1.0.0
     environment:
       APP_NUM_THREAD: 500
       <<: *kafka-env
@@ -128,7 +136,7 @@ services:
 
 #----------------------------------------- Mail worker ----------------------------------------- 
   mail-worker:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-mail-worker:v1.0.1
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-mail-worker:v1.0.0
     environment:
       REPORT_REPO_ADDR: monitor-service:8180
       <<: *kafka-env
@@ -143,6 +151,18 @@ services:
       - sm_network
     deploy:
       replicas: 1
+
+#----------------------------------------- Frontend App ----------------------------------------- 
+#  frontend:
+#    image: ${DOCKER_REGISTRY:-hariii31}/server-management-frontend:v1.0.0
+#    networks:
+#      - sm_network
+#    deploy:
+#      labels:
+#        - "traefik.enable=true"
+#        - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+#        - "traefik.http.routers.frontend.priority=1"
+#        - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
 networks:
   sm_network:
