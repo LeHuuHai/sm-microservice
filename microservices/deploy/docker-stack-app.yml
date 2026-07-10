@@ -12,7 +12,7 @@ services:
 
 #----------------------------------------- Auth service ----------------------------------------- 
   auth-service:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-auth-service:v1.0.0
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-auth-service:latest
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8080
@@ -50,7 +50,7 @@ services:
 
 #----------------------------------------- Server service ----------------------------------------- 
   server-service:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-server-service:v1.0.0
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-server-service:latest
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8080
@@ -72,7 +72,7 @@ services:
 
 #----------------------------------------- Monitor service ----------------------------------------- 
   monitor-service:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-monitor-service:v1.0.0
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-monitor-service:latest
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8080
@@ -106,7 +106,7 @@ services:
 
 #----------------------------------------- Heartbeat gateway ----------------------------------------- 
   heartbeat-gateway:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-heartbeat-gateway:v1.0.0
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-heartbeat-gateway:latest
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8080
@@ -124,7 +124,7 @@ services:
 
 #----------------------------------------- Ping worker ----------------------------------------- 
   ping-worker:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-ping-worker:v1.0.0
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-ping-worker:latest
     environment:
       APP_NUM_THREAD: 500
       <<: *kafka-env
@@ -136,7 +136,7 @@ services:
 
 #----------------------------------------- Mail worker ----------------------------------------- 
   mail-worker:
-    image: ${DOCKER_REGISTRY:-hariii31}/server-management-mail-worker:v1.0.0
+    image: ${DOCKER_REGISTRY:-hariii31}/server-management-mail-worker:latest
     environment:
       REPORT_REPO_ADDR: monitor-service:8180
       <<: *kafka-env
@@ -151,18 +151,6 @@ services:
       - sm_network
     deploy:
       replicas: 1
-
-#----------------------------------------- Frontend App ----------------------------------------- 
-#  frontend:
-#    image: ${DOCKER_REGISTRY:-hariii31}/server-management-frontend:v1.0.0
-#    networks:
-#      - sm_network
-#    deploy:
-#      labels:
-#        - "traefik.enable=true"
-#        - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
-#        - "traefik.http.routers.frontend.priority=1"
-#        - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
 networks:
   sm_network:

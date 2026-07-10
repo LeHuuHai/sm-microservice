@@ -4,7 +4,7 @@ set -e
 # Configuration
 NETWORK_NAME="sm_network"
 DOCKER_REGISTRY="${DOCKER_REGISTRY:-hariii31}"
-IMAGE_NAME="${DOCKER_REGISTRY}/server-management-agent:v1.0.0"
+IMAGE_NAME="${DOCKER_REGISTRY}/server-management-agent:latest"
 HEARTBEAT_URL="http://heartbeat-gateway:8080/heartbeat"
 API_KEY="heartbeat_api_key"
 

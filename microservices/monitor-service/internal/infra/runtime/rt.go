@@ -1,7 +1,6 @@
 package runtime
 
 import (
-	"embed"
 	"fmt"
 	"log/slog"
 
@@ -18,8 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-//go:embed migrations/*.sql
-var migrationsFS embed.FS
+
 
 type App struct {
 	Config             *config.Config
@@ -47,9 +45,7 @@ func NewApp() (*App, error) {
 		slog.Error("Failed to connect to postgres in monitor-service", "err", err)
 		return nil, err
 	}
-	if err := db.RunMigrations(cfg.DBConfig, migrationsFS, "migrations"); err != nil {
-		slog.Error("Failed to run DB migrations", "error", err)
-	}
+
 
 	// rdb
 	redisClient, err := rdb.Connect(cfg.RedisConfig)
@@ -64,14 +60,8 @@ func NewApp() (*App, error) {
 		slog.Error("Failed to connect to elasticsearch in monitor-service", "err", err)
 		return nil, err
 	}
-	if err := es.InitHeartbeatIndex(esClient); err != nil {
-		slog.Error("Failed to init elasticsearch heartbeat index", "err", err)
-	}
 
-	// kafka
-	if err := mq.InitKafkaTopics(cfg.PingRequestWriterConfig.Broker); err != nil {
-		slog.Error("Failed to init kafka topics", "err", err)
-	}
+
 
 	// Kafka Writers
 	pingWriter := pkgmq.NewWriter(cfg.PingRequestWriterConfig, mq.WithAsync(true), mq.WithRequiredAcks(0))

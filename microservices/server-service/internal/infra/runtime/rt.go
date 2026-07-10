@@ -1,7 +1,6 @@
 package rt
 
 import (
-	"embed"
 	"fmt"
 	"log/slog"
 
@@ -13,8 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-//go:embed migrations/*.sql
-var migrationsFS embed.FS
+
 
 type App struct {
 	Config            *config.Config
@@ -35,9 +33,7 @@ func NewApp() (*App, error) {
 		slog.Error("Failed to connect to postgres", "err", err)
 		return nil, err
 	}
-	if err := db.RunMigrations(cfg.DBConfig, migrationsFS, "migrations"); err != nil {
-		slog.Error("Failed to run DB migrations", "error", err)
-	}
+
 
 	kw := mq.NewWriter(cfg.KafkaConfig, mq.WithRequiredAcks(-1))
 

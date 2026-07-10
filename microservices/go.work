@@ -4,6 +4,7 @@ use (
 	./agent
 	./auth-service
 	./heartbeat-gateway
+	./init-service
 	./mail-worker
 	./monitor-service
 	./ping-worker

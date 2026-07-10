@@ -1,7 +1,6 @@
 package rt
 
 import (
-	"embed"
 	"fmt"
 	"log/slog"
 
@@ -14,8 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-//go:embed migrations/*.sql
-var migrationsFS embed.FS
+
 
 type App struct {
 	Config      *config.Config
@@ -37,9 +35,6 @@ func NewApp() (*App, error) {
 	dbConn, err := db.Connect(cfg.DBConfig)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", apperr.ErrAppBuild, err)
-	}
-	if err := db.RunMigrations(cfg.DBConfig, migrationsFS, "migrations"); err != nil {
-		slog.Error("Failed to run DB migrations", "error", err)
 	}
 	rdbClient, err := cache.Connect(cfg.RedisConfig)
 	if err != nil {
