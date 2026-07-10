@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+// @ts-ignore
+const API_BASE_URL = window._env_?.VITE_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://192.168.9.250';
+
 const api = axios.create({
-  baseURL: 'http://192.168.9.250',
+  baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -32,7 +35,7 @@ api.interceptors.response.use((response) => response, async (error) => {
       const refreshToken = tokenService.getRefreshToken();
       if (refreshToken) {
         try {
-          const res = await axios.post('http://192.168.9.250/auth/refresh', { refresh_token: refreshToken });
+          const res = await axios.post(`${API_BASE_URL}/auth/refresh`, { refresh_token: refreshToken });
           if (res.data?.access_token) {
             tokenService.setTokens(res.data.access_token, res.data.refresh_token || refreshToken);
             originalRequest.headers['Authorization'] = `Bearer ${res.data.access_token}`;

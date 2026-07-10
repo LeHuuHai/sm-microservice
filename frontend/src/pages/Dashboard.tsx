@@ -52,7 +52,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchServers();
-    const interval = setInterval(fetchServers, 10000);
+    const interval = setInterval(fetchServers, 5000);
     return () => clearInterval(interval);
   }, [page, pageSize]);
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Download, Upload, FileText, Trash2, Edit } from 'lucide-react';
 import api from '../api/axios';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 interface Server { id: string; name: string; ipv4: string; }
 
@@ -8,8 +10,8 @@ const ServerManagement: React.FC = () => {
   const [servers, setServers] = useState<Server[]>([]);
   const [isReportModalOpen, setReportModalOpen] = useState(false);
   const [reportEmail, setReportEmail] = useState('');
-  const [reportFrom, setReportFrom] = useState('');
-  const [reportTo, setReportTo] = useState('');
+  const [reportFrom, setReportFrom] = useState<Date | null>(null);
+  const [reportTo, setReportTo] = useState<Date | null>(null);
   const [importResult, setImportResult] = useState<any>(null);
   const [toastMessage, setToastMessage] = useState<{ text: string, type: 'error' | 'success' } | null>(null);
 
@@ -94,10 +96,11 @@ const ServerManagement: React.FC = () => {
 
   const handleRequestReport = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!reportFrom || !reportTo) return;
     try {
       await api.post('/monitor/report', { 
-        from: new Date(reportFrom).toISOString(), 
-        to: new Date(reportTo).toISOString(), 
+        from: reportFrom.toISOString(), 
+        to: reportTo.toISOString(), 
         receivers: [reportEmail] 
       });
       showToast('Report request accepted!', 'success');
@@ -193,8 +196,8 @@ const ServerManagement: React.FC = () => {
             <form onSubmit={handleRequestReport}>
               <div className="input-group"><label className="input-label">Email to receive report</label><input type="email" className="input-field" required value={reportEmail} onChange={e => setReportEmail(e.target.value)} /></div>
               <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
-                <div style={{ flex: 1 }}><label className="input-label">From Date</label><input type="date" className="input-field" required value={reportFrom} onChange={e => setReportFrom(e.target.value)} /></div>
-                <div style={{ flex: 1 }}><label className="input-label">To Date</label><input type="date" className="input-field" required value={reportTo} onChange={e => setReportTo(e.target.value)} /></div>
+                <div style={{ flex: 1 }}><label className="input-label">From Date</label><DatePicker selected={reportFrom} onChange={(date: Date | null) => setReportFrom(date)} showTimeInput timeInputLabel="Time:" dateFormat="yyyy-MM-dd HH:mm:ss" className="input-field" required /></div>
+                <div style={{ flex: 1 }}><label className="input-label">To Date</label><DatePicker selected={reportTo} onChange={(date: Date | null) => setReportTo(date)} showTimeInput timeInputLabel="Time:" dateFormat="yyyy-MM-dd HH:mm:ss" className="input-field" required /></div>
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}><button type="button" className="btn btn-outline" onClick={() => setReportModalOpen(false)}>Cancel</button><button type="submit" className="btn btn-primary">Submit</button></div>
             </form>
