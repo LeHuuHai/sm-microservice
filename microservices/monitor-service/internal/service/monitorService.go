@@ -113,6 +113,41 @@ func (s *MonitorService) SyncServerLifecycle(ctx context.Context, event pkgmodel
 	return nil
 }
 
+func (s *MonitorService) SyncServerLifecycleBatch(ctx context.Context, events []pkgmodel.ServerEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
+
+	servers := make([]model.MonitoredServer, len(events))
+	statuses := make([]model.LiveStatus, len(events))
+
+	for i, ev := range events {
+		servers[i] = model.MonitoredServer{
+			ServerID:   ev.ServerID,
+			ServerName: ev.ServerName,
+			IPv4:       ev.IPv4,
+			Version:    ev.Version,
+		}
+		statuses[i] = model.LiveStatus{
+			ServerID: ev.ServerID,
+			Status:   pkgmodel.StatusUnknown,
+		}
+	}
+
+	slog.Info("Syncing server batch create events", "count", len(events))
+	if err := s.monitoredServerRepo.CreateBatch(ctx, servers); err != nil {
+		slog.Error("Failed to bulk create monitored servers", "err", err)
+		return err
+	}
+
+	if err := s.liveStatusRepo.CreateBatch(ctx, statuses); err != nil {
+		slog.Error("Failed to bulk create live statuses", "err", err)
+		return err
+	}
+
+	return nil
+}
+
 func (s *MonitorService) GetLiveStatuses(ctx context.Context, from int, to int) ([]model.LiveStatusWithServerInfo, int, int, int, int, error) {
 	if to-from <= 0 || from < 0 || to <= 0 {
 		return nil, 0, 0, 0, 0, apperr.ErrInvalidPagination

@@ -8,6 +8,7 @@ import (
 
 type LiveStatusRepositoryInterface interface {
 	Create(ctx context.Context, s *model.LiveStatus) error
+	CreateBatch(ctx context.Context, statuses []model.LiveStatus) error
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context) ([]model.LiveStatus, error)
 	BulkUpdateLiveStatus(ctx context.Context, items []model.LiveStatus) error

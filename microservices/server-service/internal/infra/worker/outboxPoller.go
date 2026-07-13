@@ -2,14 +2,11 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"time"
 
-	pkgmodel "github.com/LeHuuHai/server-management/microservices/pkg/model"
 	"github.com/LeHuuHai/server-management/microservices/server-service/internal/domain/publisher"
 	"github.com/LeHuuHai/server-management/microservices/server-service/internal/domain/repo"
-	"github.com/LeHuuHai/server-management/microservices/server-service/internal/model"
 )
 
 type OutboxPoller struct {
@@ -53,41 +50,10 @@ func (p *OutboxPoller) processBatch(ctx context.Context) {
 	var successfulIDs []string
 
 	for _, ev := range events {
-		var serverEvent pkgmodel.ServerEvent
-		if err := json.Unmarshal(ev.Payload, &serverEvent); err != nil {
-			slog.Error("Failed to unmarshal outbox payload", "error", err, "id", ev.ID)
-			continue
-		}
+		err := p.publisher.PublishEvent(ctx, string(ev.Topic), ev.Payload)
 
-		var pubErr error
-		switch pkgmodel.ServerEventType(ev.Topic) {
-		case pkgmodel.ServerCreateEvent:
-			slog.Info("Calling PublishServerCreated", "serverID", serverEvent.ServerID, "serverName", serverEvent.ServerName, "IPv4", serverEvent.IPv4, "Version", 1)
-			pubErr = p.publisher.PublishServerCreated(ctx, &model.ServerProfile{
-				ServerID:   serverEvent.ServerID,
-				ServerName: serverEvent.ServerName,
-				IPv4:       serverEvent.IPv4,
-				Version:    1,
-			})
-		case pkgmodel.ServerUpdateEvent:
-			slog.Info("Calling PublishServerUpdated", "serverID", serverEvent.ServerID, "serverName", serverEvent.ServerName, "IPv4", serverEvent.IPv4, "Version", serverEvent.Version)
-			pubErr = p.publisher.PublishServerUpdated(ctx, &model.ServerProfile{
-				ServerID:   serverEvent.ServerID,
-				ServerName: serverEvent.ServerName,
-				IPv4:       serverEvent.IPv4,
-				Version:    serverEvent.Version,
-			})
-		case pkgmodel.ServerDeleteEvent:
-			slog.Info("Calling PublishServerDeleted", "serverID", serverEvent.ServerID)
-			pubErr = p.publisher.PublishServerDeleted(ctx, serverEvent.ServerID)
-		default:
-			slog.Warn("Unknown topic in outbox event", "topic", ev.Topic)
-			continue
-		}
-
-		if pubErr != nil {
-			slog.Error("Failed to publish outbox event", "error", pubErr, "id", ev.ID)
-			// Stop processing this batch to preserve ordering (optional) or continue
+		if err != nil {
+			slog.Error("Failed to publish outbox event", "error", err, "id", ev.ID)
 			continue
 		}
 

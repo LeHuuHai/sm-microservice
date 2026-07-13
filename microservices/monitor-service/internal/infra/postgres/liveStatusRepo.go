@@ -7,6 +7,7 @@ import (
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/domain/repo"
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type LiveStatusRepo struct {
@@ -19,6 +20,16 @@ func NewLiveStatusRepository(db *gorm.DB) repo.LiveStatusRepositoryInterface {
 
 func (r *LiveStatusRepo) Create(ctx context.Context, s *model.LiveStatus) error {
 	return r.db.WithContext(ctx).Create(s).Error
+}
+
+func (r *LiveStatusRepo) CreateBatch(ctx context.Context, statuses []model.LiveStatus) error {
+	if len(statuses) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&statuses).
+		Error
 }
 
 func (r *LiveStatusRepo) Delete(ctx context.Context, id string) error {

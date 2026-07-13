@@ -104,29 +104,23 @@ func (r *ServerRepo) List(ctx context.Context, filter model.ListServerFilter) (*
 }
 
 func (r *ServerRepo) CreateBatch(ctx context.Context, servers []model.ServerProfile) (*model.CreateBatchServerResult, error) {
+	if len(servers) == 0 {
+		return &model.CreateBatchServerResult{}, nil
+	}
+	db := getDB(ctx, r.db)
+	err := db.WithContext(ctx).Create(&servers).Error
+	if err != nil {
+		return nil, err
+	}
 	res := &model.CreateBatchServerResult{
-		Success:    make([]string, 0),
+		Success:    make([]string, len(servers)),
 		Failed:     make([]string, 0),
-		SuccessCnt: 0,
+		SuccessCnt: len(servers),
 		FailedCnt:  0,
 	}
-
-	for _, s := range servers {
-		db := getDB(ctx, r.db)
-		err := db.WithContext(ctx).
-			Create(&s).Error
-
-		if err != nil {
-			res.Failed = append(res.Failed, s.ServerID)
-			continue
-		}
-
-		res.Success = append(res.Success, s.ServerID)
+	for i, s := range servers {
+		res.Success[i] = s.ServerID
 	}
-
-	res.SuccessCnt = len(res.Success)
-	res.FailedCnt = len(res.Failed)
-
 	return res, nil
 }
 

@@ -145,40 +145,108 @@ func (s *ServerService) DeleteServer(ctx context.Context, serverID string) error
 }
 
 func (s *ServerService) ImportServer(ctx context.Context, serversData []model.ServerAddress) (*model.CreateBatchServerResult, error) {
-	invalid := make([]string, 0)
-	valid := make([]model.ServerProfile, 0)
-
-	for _, item := range serversData {
-		ip := net.ParseIP(item.IPv4)
-		if ip == nil || ip.To4() == nil {
-			invalid = append(invalid, item.ServerID)
-			continue
-		}
-		valid = append(valid, model.ServerProfile{
-			ServerID:   item.ServerID,
-			ServerName: item.ServerName,
-			IPv4:       item.IPv4,
-		})
-	}
-
-	var res *model.CreateBatchServerResult = &model.CreateBatchServerResult{
+	res := &model.CreateBatchServerResult{
 		Success:    make([]string, 0),
 		Failed:     make([]string, 0),
 		SuccessCnt: 0,
 		FailedCnt:  0,
 	}
 
-	for _, saddress := range serversData {
-		_, err := s.CreateServer(ctx, &saddress)
-		if err != nil {
-			res.Failed = append(res.Failed, saddress.ServerID)
-			res.FailedCnt++
-		} else {
-			res.Success = append(res.Success, saddress.ServerID)
-			res.SuccessCnt++
+	if len(serversData) == 0 {
+		return res, nil
+	}
+
+	// Chunk the import list into batches of 100
+	batches := chunkSlice(serversData, 100)
+
+	for _, batch := range batches {
+		// Prepare profiles and events for the current batch
+		var chunkProfiles []model.ServerProfile
+		var chunkEvents []pkgmodel.ServerEvent
+		var invalidIDs []string
+
+		for _, item := range batch {
+			ip := net.ParseIP(item.IPv4)
+			if ip == nil || ip.To4() == nil {
+				invalidIDs = append(invalidIDs, item.ServerID)
+				continue
+			}
+
+			chunkProfiles = append(chunkProfiles, model.ServerProfile{
+				ServerID:   item.ServerID,
+				ServerName: item.ServerName,
+				IPv4:       item.IPv4,
+				Version:    1,
+			})
+
+			chunkEvents = append(chunkEvents, pkgmodel.ServerEvent{
+				ServerID:   item.ServerID,
+				ServerName: item.ServerName,
+				IPv4:       item.IPv4,
+				Timestamp:  time.Now(),
+				Version:    1,
+			})
+		}
+
+		// 1. Try bulk inserting the batch inside a transaction
+		var bulkErr error
+		if len(chunkProfiles) > 0 {
+			bulkErr = s.txManager.WithTx(ctx, func(txCtx context.Context) error {
+				_, err := s.repo.CreateBatch(txCtx, chunkProfiles)
+				if err != nil {
+					return err
+				}
+				payload, _ := json.Marshal(chunkEvents)
+				return s.outboxRepo.CreateEvent(txCtx, &model.OutboxEvent{
+					ID:        uuid.New().String(),
+					Topic:     pkgmodel.ServerBatchCreateEvent,
+					Payload:   payload,
+					Status:    model.OutboxStatusPending,
+					CreatedAt: time.Now(),
+				})
+			})
+		}
+
+		if bulkErr == nil {
+			// Happy Path: Bulk insert succeeded!
+			for _, p := range chunkProfiles {
+				res.Success = append(res.Success, p.ServerID)
+				res.SuccessCnt++
+			}
+			for _, id := range invalidIDs {
+				res.Failed = append(res.Failed, id)
+				res.FailedCnt++
+			}
+			continue
+		}
+
+		// 2. Fallback Path: Bulk insert failed (due to conflict, duplicate key, etc.)
+		// Fallback to sequential insertion for each item in the batch
+		for _, saddress := range batch {
+			_, err := s.CreateServer(ctx, &saddress)
+			if err != nil {
+				res.Failed = append(res.Failed, saddress.ServerID)
+				res.FailedCnt++
+			} else {
+				res.Success = append(res.Success, saddress.ServerID)
+				res.SuccessCnt++
+			}
 		}
 	}
+
 	return res, nil
+}
+
+func chunkSlice(slice []model.ServerAddress, chunkSize int) [][]model.ServerAddress {
+	var chunks [][]model.ServerAddress
+	for i := 0; i < len(slice); i += chunkSize {
+		end := i + chunkSize
+		if end > len(slice) {
+			end = len(slice)
+		}
+		chunks = append(chunks, slice[i:end])
+	}
+	return chunks
 }
 
 func NewServerService(

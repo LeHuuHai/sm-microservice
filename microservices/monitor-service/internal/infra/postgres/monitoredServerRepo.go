@@ -7,6 +7,7 @@ import (
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/domain/repo"
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/model"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type MonitoredServerRepo struct {
@@ -19,6 +20,16 @@ func NewMonitoredServerRepository(db *gorm.DB) repo.MonitoredServerRepositoryInt
 
 func (r *MonitoredServerRepo) Create(ctx context.Context, s *model.MonitoredServer) error {
 	return r.db.WithContext(ctx).Create(s).Error
+}
+
+func (r *MonitoredServerRepo) CreateBatch(ctx context.Context, servers []model.MonitoredServer) error {
+	if len(servers) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{DoNothing: true}).
+		Create(&servers).
+		Error
 }
 
 func (r *MonitoredServerRepo) Update(ctx context.Context, s *model.MonitoredServer) error {

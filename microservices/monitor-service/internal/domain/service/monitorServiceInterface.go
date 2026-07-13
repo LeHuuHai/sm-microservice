@@ -11,5 +11,6 @@ type MonitorServiceInterface interface {
 	ProcessHeartbeat(ctx context.Context, hb pkgmodel.Heartbeat) error
 	ProcessPingResult(ctx context.Context, res pkgmodel.ResponsePing) error
 	SyncServerLifecycle(ctx context.Context, event pkgmodel.ServerEvent, action pkgmodel.ServerActionType) error
+	SyncServerLifecycleBatch(ctx context.Context, events []pkgmodel.ServerEvent) error
 	GetLiveStatuses(ctx context.Context, from int, to int) ([]model.LiveStatusWithServerInfo, int, int, int, int, error)
 }

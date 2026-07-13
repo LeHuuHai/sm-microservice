@@ -4,13 +4,15 @@ type ServerEventType string
 type ServerActionType string
 
 const (
-	ServerCreateEvent ServerEventType = "ServerCreate"
-	ServerUpdateEvent ServerEventType = "ServerUpdate"
-	ServerDeleteEvent ServerEventType = "ServerDelete"
+	ServerCreateEvent      ServerEventType = "ServerCreate"
+	ServerUpdateEvent      ServerEventType = "ServerUpdate"
+	ServerDeleteEvent      ServerEventType = "ServerDelete"
+	ServerBatchCreateEvent ServerEventType = "ServerBatchCreate"
 )
 
 const (
-	ServerCreateAction = "Create"
-	ServerUpdateAction = "Update"
-	ServerDeleteAction = "Delete"
+	ServerCreateAction      = "Create"
+	ServerUpdateAction      = "Update"
+	ServerDeleteAction      = "Delete"
+	ServerBatchCreateAction = "BatchCreate"
 )
