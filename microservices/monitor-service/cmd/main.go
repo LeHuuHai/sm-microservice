@@ -29,8 +29,10 @@ import (
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/handler"
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/internal/rpc"
 	auth "github.com/LeHuuHai/server-management/microservices/pkg/auth"
+	"github.com/LeHuuHai/server-management/microservices/pkg/metrics"
 	pb "github.com/LeHuuHai/server-management/microservices/pkg/pb/monitor"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
 )
 
@@ -144,6 +146,10 @@ func main() {
 	reportHandler := handler.NewMonitorRestHandler(reportSvc, monitorSvc)
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+
+	// Register metrics middleware and endpoint
+	router.Use(metrics.PrometheusMiddleware())
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	strictHandler := api.NewStrictHandler(reportHandler, nil)
 	api.RegisterHandlersWithOptions(router, strictHandler, api.GinServerOptions{

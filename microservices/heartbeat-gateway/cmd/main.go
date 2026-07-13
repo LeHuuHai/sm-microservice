@@ -19,7 +19,9 @@ import (
 	rt "github.com/LeHuuHai/server-management/microservices/heartbeat-gateway/internal/infra/runtime"
 	"github.com/LeHuuHai/server-management/microservices/heartbeat-gateway/internal/middleware"
 	"github.com/LeHuuHai/server-management/microservices/heartbeat-gateway/internal/service"
+	"github.com/LeHuuHai/server-management/microservices/pkg/metrics"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -35,6 +37,10 @@ func main() {
 	// Set Gin mode
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+
+	// Register metrics middleware and endpoint
+	router.Use(metrics.PrometheusMiddleware())
+	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Register API Key Middleware and Strict API Handlers
 	router.Use(middleware.NewAPIKeyMiddleware(app.Config.AppConfig.HeartbeatKey))

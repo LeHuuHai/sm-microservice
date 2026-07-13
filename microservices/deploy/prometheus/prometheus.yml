@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  - job_name: 'heartbeat-gateway'
+    static_configs:
+      - targets: ['heartbeat-gateway:8080']
+
+  - job_name: 'monitor-service'
+    static_configs:
+      - targets: ['monitor-service:8080']
+
+  - job_name: 'kafka-exporter'
+    static_configs:
+      - targets: ['kafka-exporter:9308']
