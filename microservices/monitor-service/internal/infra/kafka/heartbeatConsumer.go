@@ -20,7 +20,7 @@ func NewHeartbeatConsumer(r *kafka.Reader) mq.HeartbeatConsumerInterface {
 }
 
 func (c *HeartbeatConsumer) Read(ctx context.Context) (pkgmodel.Heartbeat, func(context.Context) error, error) {
-	msg, err := c.reader.FetchMessage(ctx)
+	msg, err := c.reader.ReadMessage(ctx)
 	if err != nil {
 		return pkgmodel.Heartbeat{}, nil, err
 	}
@@ -32,7 +32,7 @@ func (c *HeartbeatConsumer) Read(ctx context.Context) (pkgmodel.Heartbeat, func(
 	}
 
 	return hb, func(ctx context.Context) error {
-		return c.reader.CommitMessages(ctx, msg)
+		return nil // Auto-committed by ReadMessage
 	}, nil
 }
 
