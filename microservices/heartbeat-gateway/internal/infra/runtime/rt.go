@@ -23,7 +23,7 @@ func NewApp() (*App, error) {
 	}
 	slog.Info("runtime: config loaded", "cfg", cfg.LogValue())
 
-	kw := mq.NewWriter(cfg.KafkaConfig, mq.WithRequiredAcks(0))
+	kw := mq.NewWriter(cfg.KafkaConfig, mq.WithAsync(true), mq.WithRequiredAcks(0))
 
 	return &App{
 		Config:      cfg,

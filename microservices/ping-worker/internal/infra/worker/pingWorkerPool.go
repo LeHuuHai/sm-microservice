@@ -29,10 +29,7 @@ func NewPingWorkerPool(numThreads int, consumer mq.PingRequestConsumerInterface,
 func (p *PingWorkerPool) Start(ctx context.Context, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	jobs := make(chan struct {
-		Req        pkgmodel.RequestPing
-		CommitFunc func(context.Context) error
-	}, p.numThreads*2)
+	jobs := make(chan pkgmodel.RequestPing, p.numThreads*2)
 
 	var poolWg sync.WaitGroup
 	poolWg.Add(p.numThreads + 1)
@@ -47,17 +44,14 @@ func (p *PingWorkerPool) Start(ctx context.Context, wg *sync.WaitGroup) {
 			case <-ctx.Done():
 				return
 			default:
-				req, commitFunc, err := p.consumer.Read(ctx)
+				req, err := p.consumer.Read(ctx)
 				if err != nil {
 					slog.Warn("Failed to read ping request", slog.Any("error", err))
 					continue
 				}
 
 				select {
-				case jobs <- struct {
-					Req        pkgmodel.RequestPing
-					CommitFunc func(context.Context) error
-				}{req, commitFunc}:
+				case jobs <- req:
 				case <-ctx.Done():
 					return
 				}
@@ -78,24 +72,16 @@ func (p *PingWorkerPool) Start(ctx context.Context, wg *sync.WaitGroup) {
 						return
 					}
 
-					res, err := p.service.Ping(ctx, job.Req)
+					res, err := p.service.Ping(ctx, job)
 					if err != nil {
-						slog.Warn("Ping service failed", slog.String("server_id", job.Req.ServerID), slog.Any("error", err))
+						slog.Warn("Ping service failed", slog.String("server_id", job.ServerID), slog.Any("error", err))
 						continue
 					}
 
 					err = p.publisher.Publish(ctx, res)
 					if err != nil {
-						slog.Warn("Failed to publish ping response", slog.String("server_id", job.Req.ServerID), slog.Any("error", err))
+						slog.Warn("Failed to publish ping response", slog.String("server_id", job.ServerID), slog.Any("error", err))
 						continue
-					}
-
-					// Commit message after successful processing
-					if job.CommitFunc != nil {
-						err = job.CommitFunc(ctx)
-						if err != nil {
-							slog.Warn("Failed to commit ping request", slog.String("server_id", job.Req.ServerID), slog.Any("error", err))
-						}
 					}
 				}
 			}

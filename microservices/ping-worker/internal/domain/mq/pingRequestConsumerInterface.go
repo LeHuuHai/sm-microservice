@@ -7,6 +7,6 @@ import (
 )
 
 type PingRequestConsumerInterface interface {
-	Read(ctx context.Context) (pkgmodel.RequestPing, func(context.Context) error, error)
+	Read(ctx context.Context) (pkgmodel.RequestPing, error)
 	Close() error
 }

@@ -3,6 +3,7 @@ package runtime
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/LeHuuHai/server-management/microservices/monitor-service/config"
 	"github.com/LeHuuHai/server-management/microservices/pkg/apperr"
@@ -16,8 +17,6 @@ import (
 	"github.com/segmentio/kafka-go"
 	"gorm.io/gorm"
 )
-
-
 
 type App struct {
 	Config             *config.Config
@@ -46,7 +45,6 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-
 	// rdb
 	redisClient, err := rdb.Connect(cfg.RedisConfig)
 	if err != nil {
@@ -61,16 +59,14 @@ func NewApp() (*App, error) {
 		return nil, err
 	}
 
-
-
 	// Kafka Writers
 	pingWriter := pkgmq.NewWriter(cfg.PingRequestWriterConfig, mq.WithAsync(true), mq.WithRequiredAcks(0))
 	mailWriter := pkgmq.NewWriter(cfg.MailWriterConfig, mq.WithRequiredAcks(-1))
 
 	// Kafka Readers
-	serverEventsReader := pkgmq.NewReader(cfg.ServerEventReaderConfig)
-	heartbeatReader := pkgmq.NewReader(cfg.HeartbeatReaderConfig)
-	pingResponseReader := pkgmq.NewReader(cfg.PingResponseReaderConfig)
+	serverEventsReader := pkgmq.NewReader(cfg.ServerEventReaderConfig, pkgmq.WithCommitInterval(time.Second))
+	heartbeatReader := pkgmq.NewReader(cfg.HeartbeatReaderConfig, pkgmq.WithCommitInterval(time.Second))
+	pingResponseReader := pkgmq.NewReader(cfg.PingResponseReaderConfig, pkgmq.WithCommitInterval(time.Second))
 
 	return &App{
 		Config:             cfg,

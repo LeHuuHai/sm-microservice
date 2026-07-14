@@ -19,21 +19,19 @@ func NewHeartbeatConsumer(r *kafka.Reader) mq.HeartbeatConsumerInterface {
 	}
 }
 
-func (c *HeartbeatConsumer) Read(ctx context.Context) (pkgmodel.Heartbeat, func(context.Context) error, error) {
+func (c *HeartbeatConsumer) Read(ctx context.Context) (pkgmodel.Heartbeat, error) {
 	msg, err := c.reader.ReadMessage(ctx)
 	if err != nil {
-		return pkgmodel.Heartbeat{}, nil, err
+		return pkgmodel.Heartbeat{}, err
 	}
 
 	var hb pkgmodel.Heartbeat
 	err = json.Unmarshal(msg.Value, &hb)
 	if err != nil {
-		return pkgmodel.Heartbeat{}, nil, err
+		return pkgmodel.Heartbeat{}, err
 	}
 
-	return hb, func(ctx context.Context) error {
-		return nil // Auto-committed by ReadMessage
-	}, nil
+	return hb, nil
 }
 
 func (c *HeartbeatConsumer) Close() error {

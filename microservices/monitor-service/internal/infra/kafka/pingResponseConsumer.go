@@ -19,21 +19,19 @@ func NewPingResponseConsumer(r *kafka.Reader) mq.PingResponseConsumerInterface {
 	}
 }
 
-func (c *PingResponseConsumer) Read(ctx context.Context) (pkgmodel.ResponsePing, func(context.Context) error, error) {
+func (c *PingResponseConsumer) Read(ctx context.Context) (pkgmodel.ResponsePing, error) {
 	msg, err := c.reader.ReadMessage(ctx)
 	if err != nil {
-		return pkgmodel.ResponsePing{}, nil, err
+		return pkgmodel.ResponsePing{}, err
 	}
 
 	var res pkgmodel.ResponsePing
 	err = json.Unmarshal(msg.Value, &res)
 	if err != nil {
-		return pkgmodel.ResponsePing{}, nil, err
+		return pkgmodel.ResponsePing{}, err
 	}
 
-	return res, func(ctx context.Context) error {
-		return nil // Auto-committed by ReadMessage
-	}, nil
+	return res, nil
 }
 
 func (c *PingResponseConsumer) Close() error {
