@@ -11,63 +11,7 @@ Hệ thống hoạt động theo mô hình **Hybrid Event-Driven, REST HTTP & gR
 - **Luồng điều khiển / giao tiếp Client (Read-path & Admin):** Đi qua REST HTTP thông qua Traefik API Gateway.
 - **Luồng truyền tải file nội bộ:** Đi qua gRPC Stream để tối ưu tốc độ.
 
-```text
-                  ┌──────────────────────┐
-                  │    Web/Mobile App    │
-                  └──────────┬───────────┘
-                             │ REST HTTP (Authorization: Bearer JWT)
-                             ▼
-                           ┌───────────┐         ForwardAuth
-                           │  Traefik  │ ──────────────────────────────┐
-                           │  Gateway  │                               │
-                           └─────┬─────┘                               │
-                                 │                                     ▼
-┌─────────────┐                  │ HTTP REST                 ┌───────────┐
-│ host-agent  │ ───► POST /hb ───┤ (X-User-ID & X-User-Role) │   Auth    │
-│ (monitored) │ (X-API-Key)      ├─────────────────────────► │  Service  │
-└─────────────┘                  │                           └───────────┘
-                                 │
-                                 ├──► HTTP REST ───────────► ┌───────────┐
-                                 │                           │  Server   │
-                                 │                           │  Service  │
-                                 │                           └─────┬─────┘
-                                 │                                 │ Server Lifecycle
-                                 │                                 │ Events (Versioned)
-                                 ├──► HTTP REST (X-API-Key)  ┌───────────┐
-                                 │                           │ Heartbeat │
-                                 │                           │  Gateway  │
-                                 │                           └─────┬─────┘
-                                 │                                 │ Heartbeats
-                                 │                                 │ (Acks=0)
-                                 ▼                                 ▼
-┌────────────────────────────────┼─────────────────────────────────┼─┐
-│                                │          KAFKA BUS              │ │
-│  Topics:                       ▼                                 ▼ │
-│  - heartbeats ◄─────────────────────────────────────────────────┐  │
-│  - server_lifecycle ─────────────────────────────────────────┐  │  │
-│  - ping ──────────────────────────────────────────────────┐  │  │  │
-│  - ping_res ◄──────────────────────────────────────────┐  │  │  │  │
-│  - mail ───────────────────────────┐                   │  │  │  │  │
-└────────────────────────────────────┼───────────────────┼──┼──┼──┼──┘
-                                     │                   │  │  │  │
-    ┌───────────┐                    │                   │  │  │  │
-    │   Ping    │ ◄── (Consume) ─────┼───────────────────┼──┼──┘  │
-    │  Worker   │ ─── (Publish) ─────┼───────────────────┘  │     │
-    └───────────┘                    │                      │     │
-                                     │                      ▼     ▼
-                                     │               ┌───────────┐
-                                     │               │  Monitor  │ ◄── (Từ Web: HTTP POST /report)
-                                     │               │  Service  │
-                                     │               └─────┬─────┘
-                                     │                     │
-                                     │ Kafka (mail)        │ gRPC Stream
-                                     │                     │ (X-API-Key)
-                                     ▼                     ▼
-                               ┌───────────┐
-                               │   Mail    │ ◄─────────────┘
-                               │  Worker   │
-                               └───────────┘
-```
+![System Architecture](assets/architecture.png)
 
 ---
 
@@ -89,6 +33,24 @@ microservices/
 ├── mail-worker/                  # WORKER DAEMON: GỬI BÁO CÁO QUA SMTP
 ├── agent/                        # HOST-LEVEL DAEMON: GỬI HEARTBEAT
 └── deploy/                       # DOCKER SWARM STACKS
+```
+
+### Cấu trúc nội bộ của mỗi Microservice (Clean Architecture)
+Các microservice trong dự án (như `auth-service`, `server-service`, `monitor-service`, v.v.) đều tuân thủ kiến trúc Clean Architecture để đảm bảo tính độc lập và dễ mở rộng. Cấu trúc thư mục tiêu chuẩn bên trong mỗi service thường bao gồm:
+
+```text
+[tên-microservice]/
+├── api/             # Nơi chứa file openapi.yaml và code API (router/types) sinh tự động bằng oapi-codegen
+├── cmd/             # Entry point của ứng dụng (main.go), nơi khởi tạo các dependency
+├── config/          # Xử lý biến môi trường (ENV) và cấu hình ứng dụng
+├── internal/        # Logic nghiệp vụ nội bộ (không chia sẻ ra ngoài)
+│   ├── domain/      # Chứa các Interface (repo, mq, service) đại diện cho nghiệp vụ cốt lõi
+│   ├── handler/     # Các REST/HTTP Handler xử lý request và trả về response
+│   ├── infra/       # Tầng cơ sở hạ tầng: Triển khai các Interface (Postgres, Redis, Kafka, Elasticsearch)
+│   ├── model/       # Các Entity nội bộ, DTOs và cấu trúc dữ liệu mapping với DB
+│   └── service/     # Nơi triển khai (implement) các domain service chứa logic nghiệp vụ chính
+├── go.mod, go.sum   # Quản lý dependency riêng biệt của từng service
+└── README.md        # Tài liệu hướng dẫn cục bộ cho service (được đồng bộ từ thư mục .claude)
 ```
 
 ---
