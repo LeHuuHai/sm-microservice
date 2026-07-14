@@ -31,6 +31,9 @@ services:
     networks:
       - sm_network
     deploy:
+      placement:
+        constraints:
+          - node.role == worker
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.auth.rule=PathPrefix(`/auth`)"
@@ -64,6 +67,9 @@ services:
     networks:
       - sm_network
     deploy:
+      placement:
+        constraints:
+          - node.role == worker
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.server.rule=PathPrefix(`/servers`)"
@@ -98,6 +104,9 @@ services:
     networks:
       - sm_network
     deploy:
+      placement:
+        constraints:
+          - node.role == worker
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.monitor.rule=PathPrefix(`/monitor`)"
@@ -116,6 +125,9 @@ services:
     networks:
       - sm_network
     deploy:
+      placement:
+        constraints:
+          - node.role == worker
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.heartbeat.rule=PathPrefix(`/heartbeat`)"
@@ -132,6 +144,9 @@ services:
     networks:
       - sm_network
     deploy:
+      placement:
+        constraints:
+          - node.role == worker
       replicas: 2
 
 #----------------------------------------- Mail worker ----------------------------------------- 
@@ -150,6 +165,9 @@ services:
     networks:
       - sm_network
     deploy:
+      placement:
+        constraints:
+          - node.role == worker
       replicas: 1
 
 networks:
